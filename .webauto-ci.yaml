@@ -1,103 +1,73 @@
-# The configuration file for Web.Auto CI/CD tool.
-# https://docs.web.auto/user-manuals/evaluator/configuration/reference/introduction
-
 version: 2
 
 artifacts:
-  - name: main
-    metadata:
-      play-ondemand.ci.web.auto/buildspec: Autoware-Humble_v0.29.0
+  - name: planning
     build:
       type: custom
       runtime:
-        type: standard1/amd64/large
+        type: standard1/arm64/large
       source:
         vcstool:
           repositories_files:
             - autoware.repos
-            - simulator.repos
           import_path: src
-      environment_variables:
-        AUTOWARE_PATH: /opt/autoware
-        DEBIAN_FRONTEND: noninteractive
-        LANG: C.UTF-8
-      phases:
-        - name: environment-setup
-          user: root
-          exec: ./.webauto-ci/main/environment-setup/run.sh
-          caches:
-            - name: apt-lists
-              mountpoint: /var/lib/apt/lists
-            - name: apt-archives
-              mountpoint: /var/cache/apt/archives
-          build_result_reuse:
-            key_files:
-              - .webauto-ci/main/environment-setup/**/*
-        - name: autoware-setup
-          user: autoware
-          exec: ./.webauto-ci/main/autoware-setup/run.sh
-          caches:
-            - name: apt-lists
-              mountpoint: /var/lib/apt/lists
-            - name: apt-archives
-              mountpoint: /var/cache/apt/archives
-          build_result_reuse:
-            key_files:
-              - .webauto-ci/main/autoware-setup/**/*
-              - ansible/**/*
-              - ansible-galaxy-requirements.yaml
-              - amd64.env
-          incremental_build:
-            enabled: true
-        - name: autoware-build
-          user: autoware
-          exec: ./.webauto-ci/main/autoware-build/run.sh
-          environment_variables:
-            PARALLEL_WORKERS: "32"
-            CCACHE_DIR: /tmp/build/cache/ccache
-          caches:
-            - name: apt-lists
-              mountpoint: /var/lib/apt/lists
-            - name: apt-archives
-              mountpoint: /var/cache/apt/archives
-            - name: ccache
-              mountpoint: /tmp/build/cache/ccache
-          build_result_reuse:
-            key_files:
-              - .webauto-ci/main/autoware-build/**/*
-              - src/**/*
       base_container_image:
-        from: ubuntu:22.04
+        from: ghcr.io/autowarefoundation/autoware:universe
+      phases:
+        - name: init
+          exec: "true"
       output_container_image:
-        from: autoware-build
-        workdir: /opt/autoware
-        user: autoware
+        from: init
+        workdir: /autoware
+  - name: scenario_simulator_v2
+    build:
+      type: custom
+      runtime:
+        type: standard1/arm64/large
+      source:
+        vcstool:
+          repositories_files:
+            - dependency_humble.repos
+          import_path: src
+      base_container_image:
+        from: ghcr.io/autowarefoundation/openadkit_demo.autoware:aws-reinvent-simulator-arm64
+      phases:
+        - name: init
+          exec: "true"
+      output_container_image:
+        from: init
 
 simulations:
-  - name: lexus_planning_sim
+  - name: planning_sim
     type: planning_sim_v2
     simulator:
       deployment:
         type: container
-        artifact: main
+        artifact: scenario_simulator_v2
       runtime:
-        type: standard1/amd64/medium
+        type: standard1/arm64/medium
       parameters:
-        launch_autoware: "true"
+        launch_autoware: "false"
         autoware_launch_package: autoware_launch
         autoware_launch_file: planning_simulator.launch.xml
-        architecture_type: awf/universe/20230906
+        architecture_type: awf/universe
         vehicle_model: sample_vehicle
         sensor_model: sample_sensor_kit
-        initialize_duration: "90"
-
-release:
-  components:
-    - name: planning
-      deployment:
-        type: container
-        artifact: main
-    - name: perception
-      deployment:
-        type: container
-        artifact: main
+        initialize_duration: "45"
+    components:
+      - name: planning
+        deployment:
+          type: container
+          artifact: planning
+        runtime:
+          type: standard1/arm64/medium
+        application:
+          roslaunch:
+            package_name: autoware_launch
+            file_name: planning_simulator.launch.xml
+            arguments:
+              architecture_type: awf/universe
+              sensor_model: sample_sensor_kit
+              vehicle_model: sample_vehicle
+              map_path: ${map_path}
+              scenario_simulation: "true"
