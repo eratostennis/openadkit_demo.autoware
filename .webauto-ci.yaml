@@ -6,13 +6,8 @@ artifacts:
       type: custom
       runtime:
         type: standard1/arm64/large
-      source:
-        vcstool:
-          repositories_files:
-            - autoware.repos
-          import_path: src
       base_container_image:
-        from: ghcr.io/mitsudome-r/mrm-demo:universe-after-arm64
+        from: ghcr.io/mitsudome-r/autoware/ces2025:universe-after-arm64-20241206
       phases:
         - name: init
           exec: "true"
@@ -30,7 +25,7 @@ artifacts:
             - dependency_humble.repos
           import_path: src
       base_container_image:
-        from: ghcr.io/mitsudome-r/mrm-demo:scenario-simulator-arm64
+        from: ghcr.io/mitsudome-r/autoware/ces2025:aws-reinvent-simulator-arm64-20241204
       phases:
         - name: init
           exec: "true"
@@ -38,18 +33,22 @@ artifacts:
         from: init
 
 simulations:
-  - name: planning_sim
+  - name: simple_self_hosted_container_planning_sim_v2
     type: planning_sim_v2
+    environment:
+      type: container
+      labels:
+        type: trial-sekiya-local-001
     simulator:
       deployment:
         type: container
         artifact: scenario_simulator_v2
       runtime:
-        type: standard1/arm64/medium
+        spec: main
       parameters:
         launch_autoware: "false"
-        autoware_launch_package: scenario_test_runner
-        autoware_launch_file: scenario_test_runner.launch.py
+        autoware_launch_package: autoware_launch
+        autoware_launch_file: planning_simulator.launch.xml
         architecture_type: awf/universe/20240605
         vehicle_model: sample_vehicle
         sensor_model: sample_sensor_kit
@@ -60,7 +59,7 @@ simulations:
           type: container
           artifact: planning
         runtime:
-          type: standard1/arm64/medium
+          spec: main
         application:
           roslaunch:
             package_name: autoware_launch
@@ -72,5 +71,3 @@ simulations:
               vehicle_model: sample_vehicle
               map_path: ${map_path}
               scenario_simulation: "true"
-              rviz: "false"
-              use_sim_time: "false"
