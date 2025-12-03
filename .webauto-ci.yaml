@@ -30,7 +30,7 @@ artifacts:
             - dependency_humble.repos
           import_path: src
       base_container_image:
-        from: ghcr.io/mitsudome-r/mrm-demo:scenario-simulator-arm64
+        from: ghcr.io/mitsudome-r/mrm-demo:scenario-simulator-20251203-arm64
       phases:
         - name: init
           exec: "true"
